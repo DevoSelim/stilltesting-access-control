@@ -310,6 +310,68 @@ resource "aws_sqs_queue" "iot_events" {
     Name = "stilltesting-iot-events-queue"
   }
 }
+#Aurora config
+##DB subnet group
+resource "aws_db_subnet_group" "aurora_subnets" {
+  name       = "stilltesting-aurora-subnet-group"
+  subnet_ids = [
+    aws_subnet.db_a.id,
+    aws_subnet.db_b.id,
+    aws_subnet.db_c.id,
+  ]
+
+  tags = {
+    Name = "stilltesting-aurora-subnet-group"
+  }
+}
+##Secrets manager
+resource "aws_secretsmanager_secret" "aurora_credentials" {
+  name = "stilltesting-aurora-credentials"
+}
+resource "aws_secretsmanager_secret_version" "aurora_credentials_value" {
+  secret_id = aws_secretsmanager_secret.aurora_credentials.id
+
+  secret_string = jsonencode({
+    username = "dbadmin"
+    password = random_password.aurora.result
+  })
+}
+resource "random_password" "aurora" {
+  length  = 16
+  special = true
+}
+##Aurora Cluster
+resource "aws_rds_cluster" "aurora" {
+  cluster_identifier      = "stilltesting-aurora-cluster"
+  engine                  = "aurora-postgresql"
+  engine_version          = "15.4"   
+  database_name           = "stilltesting"
+  
+  master_username         = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_value.secret_string)["username"]
+  master_password         = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_value.secret_string)["password"]
+
+  db_subnet_group_name    = aws_db_subnet_group.aurora_subnets.name
+  vpc_security_group_ids  = [aws_security_group.db.id]
+
+  storage_encrypted       = true
+  skip_final_snapshot     = true
+
+  tags = {
+    Name = "stilltesting-aurora-cluster"
+  }
+}
+## Aurora Instance
+resource "aws_rds_cluster_instance" "aurora_instance" {
+  cluster_identifier = aws_rds_cluster.aurora.id
+  instance_class     = "db.serverless"  
+  engine             = aws_rds_cluster.aurora.engine
+
+  publicly_accessible = false
+
+  tags = {
+    Name = "stilltesting-aurora-instance"
+  }
+}
 
 
 
