@@ -1,3 +1,7 @@
 .terraform/
 terraform.tfstate
 terraform.tfstate.*
+.terraform/
+infra/.terraform/
+terraform.tfstate
+terraform.tfstate.*
