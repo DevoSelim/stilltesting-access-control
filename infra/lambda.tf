@@ -155,19 +155,9 @@ resource "aws_lambda_function" "custom_authorizer" {
 
   role = aws_iam_role.lambda_role.arn
 
-  filename         = data.archive_file.token_crud_zip.output_path
-  source_code_hash = data.archive_file.token_crud_zip.output_base64sha256
+  filename         = data.archive_file.custom_authorizer_zip.output_path
+  source_code_hash = data.archive_file.custom_authorizer_zip.output_base64sha256
 
-  timeout = 10
-
-  vpc_config {
-    subnet_ids = [
-      aws_subnet.private_a.id,
-      aws_subnet.private_b.id,
-      aws_subnet.private_c.id,
-    ]
-    security_group_ids = [aws_security_group.app.id]
-  }
-
+  timeout = 5
 }
 

@@ -310,6 +310,14 @@ resource "aws_sqs_queue" "iot_events" {
     Name = "stilltesting-iot-events-queue"
   }
 }
+resource "aws_lambda_event_source_mapping" "iot_sqs_mapping" {
+  event_source_arn = aws_sqs_queue.iot_events.arn
+  function_name    = aws_lambda_function.iot_handler.arn
+
+  batch_size       = 10
+  enabled          = true
+}
+
 #Aurora config
 ##DB subnet group
 resource "aws_db_subnet_group" "aurora_subnets" {
