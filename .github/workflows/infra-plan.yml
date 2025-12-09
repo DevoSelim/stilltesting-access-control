@@ -1,4 +1,4 @@
-name: Terraform Infra Plan
+name: Terraform Infra CI
 
 on:
   pull_request:
@@ -6,16 +6,16 @@ on:
       - main
     paths:
       - 'infra/**'
-  workflow_dispatch: {}
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   terraform-plan:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
       - name: Checkout repo
@@ -42,7 +42,7 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infra
-        run: terraform plan -out=tfplan
+        run: terraform plan -input=false -out=tfplan
 
       - name: Upload plan
         uses: actions/upload-artifact@v4
@@ -52,11 +52,9 @@ jobs:
 
   terraform-apply:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-
-    permissions:
-      id-token: write
-      contents: read
+    needs: terraform-plan
+    if: github.event_name == 'pull_request'
+    environment: production
 
     steps:
       - name: Checkout repo
@@ -73,10 +71,16 @@ jobs:
         with:
           terraform_version: 1.10.0
 
+      - name: Download plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: infra
+
       - name: Terraform Init
         working-directory: infra
         run: terraform init -input=false
 
       - name: Terraform Apply
         working-directory: infra
-        run: terraform apply -auto-approve
+        run: terraform apply -input=false tfplan
