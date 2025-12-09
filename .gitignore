@@ -6,3 +6,5 @@ infra/.terraform/
 terraform.tfstate
 terraform.tfstate.*
 .terraform.lock.hcl
+lambdas/**/*.zip
+*.zip
