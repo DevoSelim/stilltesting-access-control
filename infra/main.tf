@@ -358,6 +358,7 @@ resource "aws_rds_cluster" "aurora" {
 
   skip_final_snapshot = true
 }
+
 ## Aurora Instance
 resource "aws_rds_cluster_instance" "aurora_instance" {
   identifier         = "stilltesting-aurora-instance-1"
