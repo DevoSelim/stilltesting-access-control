@@ -1,31 +1,40 @@
-#Zipping lambdas
+########################################
+# Archives (ZIP) pour chaque Lambda
+########################################
+
 data "archive_file" "employee_crud_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../lambdas/employee_crud"
   output_path = "${path.module}/../lambdas/employee_crud.zip"
 }
-data "archive_file" "custom_authorizer_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../lambdas/custom_authorizer"
-  output_path = "${path.module}/../lambdas/custom_authorizer.zip"
-}
-data "archive_file" "events_rud_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../lambdas/events_rud"
-  output_path = "${path.module}/../lambdas/events_rud.zip"
-}
-data "archive_file" "iot_handler_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../lambdas/iot_handler"
-  output_path = "${path.module}/../lambdas/iot_handler.zip"
-}
+
 data "archive_file" "token_crud_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../lambdas/token_crud"
   output_path = "${path.module}/../lambdas/token_crud.zip"
 }
 
-#Lambdas Config
+data "archive_file" "events_rud_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/events_rud"
+  output_path = "${path.module}/../lambdas/events_rud.zip"
+}
+
+data "archive_file" "iot_handler_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/iot_handler"
+  output_path = "${path.module}/../lambdas/iot_handler.zip"
+}
+
+data "archive_file" "custom_authorizer_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/custom_authorizer"
+  output_path = "${path.module}/../lambdas/custom_authorizer.zip"
+}
+
+########################################
+# Lambda employee_crud (Aurora)
+########################################
 
 resource "aws_lambda_function" "employee_crud" {
   function_name = "stilltesting-employee-crud"
@@ -40,19 +49,14 @@ resource "aws_lambda_function" "employee_crud" {
 
   timeout = 10
 
-    vpc_config {
-        subnet_ids = [
-          aws_subnet.private_a.id,
-          aws_subnet.private_b.id,
-          aws_subnet.private_c.id,
-        ]
-
-        security_group_ids = [
-          aws_security_group.app.id,
-        ]
-    }
-
-
+  vpc_config {
+    subnet_ids = [
+      aws_subnet.private_a.id,
+      aws_subnet.private_b.id,
+      aws_subnet.private_c.id,
+    ]
+    security_group_ids = [aws_security_group.app.id]
+  }
 
   environment {
     variables = {
@@ -61,6 +65,10 @@ resource "aws_lambda_function" "employee_crud" {
     }
   }
 }
+
+########################################
+# Lambda token_crud (Aurora)
+########################################
 
 resource "aws_lambda_function" "token_crud" {
   function_name = "stilltesting-token-crud"
@@ -91,6 +99,11 @@ resource "aws_lambda_function" "token_crud" {
     }
   }
 }
+
+########################################
+# Lambda events_rud (DynamoDB only)
+########################################
+
 resource "aws_lambda_function" "events_rud" {
   function_name = "stilltesting-events-rud"
 
@@ -99,19 +112,11 @@ resource "aws_lambda_function" "events_rud" {
 
   role = aws_iam_role.lambda_role.arn
 
-  filename         = data.archive_file.token_crud_zip.output_path
-  source_code_hash = data.archive_file.token_crud_zip.output_base64sha256
+  filename         = data.archive_file.events_rud_zip.output_path
+  source_code_hash = data.archive_file.events_rud_zip.output_base64sha256
 
   timeout = 10
 
-  vpc_config {
-    subnet_ids = [
-      aws_subnet.private_a.id,
-      aws_subnet.private_b.id,
-      aws_subnet.private_c.id,
-    ]
-    security_group_ids = [aws_security_group.app.id]
-  }
 
   environment {
     variables = {
@@ -119,6 +124,11 @@ resource "aws_lambda_function" "events_rud" {
     }
   }
 }
+
+########################################
+# Lambda iot_handler (SQS -> DynamoDB)
+########################################
+
 resource "aws_lambda_function" "iot_handler" {
   function_name = "stilltesting-iot-handler"
 
@@ -127,19 +137,13 @@ resource "aws_lambda_function" "iot_handler" {
 
   role = aws_iam_role.lambda_role.arn
 
-  filename         = data.archive_file.token_crud_zip.output_path
-  source_code_hash = data.archive_file.token_crud_zip.output_base64sha256
+  filename         = data.archive_file.iot_handler_zip.output_path
+  source_code_hash = data.archive_file.iot_handler_zip.output_base64sha256
 
   timeout = 10
 
-  vpc_config {
-    subnet_ids = [
-      aws_subnet.private_a.id,
-      aws_subnet.private_b.id,
-      aws_subnet.private_c.id,
-    ]
-    security_group_ids = [aws_security_group.app.id]
-  }
+  # Pareil : ne parle qu'à DDB et SQS → VPC optionnelle.
+  # vpc_config { ... }
 
   environment {
     variables = {
@@ -147,6 +151,19 @@ resource "aws_lambda_function" "iot_handler" {
     }
   }
 }
+
+resource "aws_lambda_event_source_mapping" "iot_sqs_mapping" {
+  event_source_arn = aws_sqs_queue.iot_events.arn
+  function_name    = aws_lambda_function.iot_handler.arn
+
+  batch_size = 10
+  enabled    = true
+}
+
+########################################
+# Lambda custom_authorizer (stub)
+########################################
+
 resource "aws_lambda_function" "custom_authorizer" {
   function_name = "stilltesting-custom-authorizer"
 
@@ -160,6 +177,7 @@ resource "aws_lambda_function" "custom_authorizer" {
 
   timeout = 5
 }
+
 
 resource "aws_lambda_permission" "apigw_invoke_employee" {
   statement_id  = "AllowAPIGatewayInvokeEmployee"

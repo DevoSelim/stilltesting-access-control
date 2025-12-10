@@ -310,14 +310,6 @@ resource "aws_sqs_queue" "iot_events" {
     Name = "stilltesting-iot-events-queue"
   }
 }
-resource "aws_lambda_event_source_mapping" "iot_sqs_mapping" {
-  event_source_arn = aws_sqs_queue.iot_events.arn
-  function_name    = aws_lambda_function.iot_handler.arn
-
-  batch_size       = 10
-  enabled          = true
-}
-
 #Aurora config
 ##DB subnet group
 resource "aws_db_subnet_group" "aurora_subnets" {
@@ -351,8 +343,7 @@ resource "random_password" "aurora" {
 ##Aurora Cluster
 resource "aws_rds_cluster" "aurora" {
   cluster_identifier      = "stilltesting-aurora-cluster"
-  engine                  = "aurora-postgresql"
-  engine_version          = "15.4"   
+  engine                  = "aurora-postgresql"  
   database_name           = "stilltesting"
   
   master_username         = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_value.secret_string)["username"]
