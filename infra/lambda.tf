@@ -161,3 +161,11 @@ resource "aws_lambda_function" "custom_authorizer" {
   timeout = 5
 }
 
+resource "aws_lambda_permission" "apigw_invoke_employee" {
+  statement_id  = "AllowAPIGatewayInvokeEmployee"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.employee_crud.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${aws_api_gateway_rest_api.api.execution_arn}/*/*/employee"
+}
