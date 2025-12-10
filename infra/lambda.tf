@@ -117,7 +117,6 @@ resource "aws_lambda_function" "events_rud" {
 
   timeout = 10
 
-
   environment {
     variables = {
       ACCESS_EVENTS_TABLE = aws_dynamodb_table.access_events.name
@@ -141,9 +140,6 @@ resource "aws_lambda_function" "iot_handler" {
   source_code_hash = data.archive_file.iot_handler_zip.output_base64sha256
 
   timeout = 10
-
-  # Pareil : ne parle qu'à DDB et SQS → VPC optionnelle.
-  # vpc_config { ... }
 
   environment {
     variables = {
@@ -178,6 +174,9 @@ resource "aws_lambda_function" "custom_authorizer" {
   timeout = 5
 }
 
+########################################
+# Permission : API GW -> employee_crud
+########################################
 
 resource "aws_lambda_permission" "apigw_invoke_employee" {
   statement_id  = "AllowAPIGatewayInvokeEmployee"

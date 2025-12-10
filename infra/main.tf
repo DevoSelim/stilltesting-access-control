@@ -342,35 +342,33 @@ resource "random_password" "aurora" {
 }
 ##Aurora Cluster
 resource "aws_rds_cluster" "aurora" {
-  cluster_identifier      = "stilltesting-aurora-cluster"
-  engine                  = "aurora-postgresql"  
-  database_name           = "stilltesting"
-  
-  master_username         = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_value.secret_string)["username"]
-  master_password         = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_value.secret_string)["password"]
+  cluster_identifier = "stilltesting-aurora-cluster"
 
-  db_subnet_group_name    = aws_db_subnet_group.aurora_subnets.name
-  vpc_security_group_ids  = [aws_security_group.db.id]
+  engine = "aurora-postgresql"
 
-  storage_encrypted       = true
-  skip_final_snapshot     = true
+  master_username = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_version.secret_string)["username"]
+  master_password = jsondecode(aws_secretsmanager_secret_version.aurora_credentials_version.secret_string)["password"]
 
-  tags = {
-    Name = "stilltesting-aurora-cluster"
-  }
+  database_name = "stilltesting"
+
+  db_subnet_group_name   = aws_db_subnet_group.aurora_subnets.name
+  vpc_security_group_ids = [aws_security_group.db.id]
+
+  storage_encrypted = true
+
+  skip_final_snapshot = true
 }
 ## Aurora Instance
 resource "aws_rds_cluster_instance" "aurora_instance" {
+  identifier         = "stilltesting-aurora-instance-1"
   cluster_identifier = aws_rds_cluster.aurora.id
-  instance_class     = "db.serverless"  
-  engine             = aws_rds_cluster.aurora.engine
+
+  instance_class = "db.t3.medium"       
+  engine         = "aurora-postgresql"
 
   publicly_accessible = false
-
-  tags = {
-    Name = "stilltesting-aurora-instance"
-  }
 }
+
 
 
 
