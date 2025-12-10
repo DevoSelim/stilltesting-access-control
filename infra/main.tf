@@ -326,9 +326,11 @@ resource "aws_db_subnet_group" "aurora_subnets" {
 }
 ##Secrets manager
 resource "aws_secretsmanager_secret" "aurora_credentials" {
-  name = "stilltesting-aurora-credentials"
+  name        = "stilltesting-aurora-credentials"
+  description = "Credentials for Aurora PostgreSQL cluster"
 }
-resource "aws_secretsmanager_secret_version" "aurora_credentials_value" {
+
+resource "aws_secretsmanager_secret_version" "aurora_credentials_version" {
   secret_id = aws_secretsmanager_secret.aurora_credentials.id
 
   secret_string = jsonencode({
@@ -336,6 +338,7 @@ resource "aws_secretsmanager_secret_version" "aurora_credentials_value" {
     password = random_password.aurora.result
   })
 }
+
 resource "random_password" "aurora" {
   length  = 16
   special = true
@@ -354,8 +357,7 @@ resource "aws_rds_cluster" "aurora" {
   db_subnet_group_name   = aws_db_subnet_group.aurora_subnets.name
   vpc_security_group_ids = [aws_security_group.db.id]
 
-  storage_encrypted = true
-
+  storage_encrypted   = true
   skip_final_snapshot = true
 }
 
@@ -364,12 +366,11 @@ resource "aws_rds_cluster_instance" "aurora_instance" {
   identifier         = "stilltesting-aurora-instance-1"
   cluster_identifier = aws_rds_cluster.aurora.id
 
-  instance_class = "db.t3.medium"       
+  instance_class = "db.t3.medium"
   engine         = "aurora-postgresql"
 
   publicly_accessible = false
 }
-
 
 
 
