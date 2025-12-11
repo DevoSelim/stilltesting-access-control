@@ -114,6 +114,9 @@ resource "aws_api_gateway_deployment" "api" {
     aws_api_gateway_integration.events_any,
     aws_api_gateway_integration.iot_event_to_sqs,
   ]
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 
