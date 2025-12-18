@@ -196,7 +196,23 @@ resource "aws_api_gateway_integration" "iot_event_to_sqs" {
   }
 
   request_templates = {
-    "application/json" = "Action=SendMessage&MessageBody=$input.body"
+    "application/json" = "Action=SendMessage&MessageBody=$util.urlEncode($input.body)"
   }
+}
+
+resource "aws_api_gateway_method_response" "iot_event_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.iot_event.id
+  http_method = aws_api_gateway_method.iot_event_post.http_method
+  status_code = "200"
+}
+
+resource "aws_api_gateway_integration_response" "iot_event_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.iot_event.id
+  http_method = aws_api_gateway_method.iot_event_post.http_method
+  status_code = aws_api_gateway_method_response.iot_event_200.status_code
+
+  depends_on = [aws_api_gateway_integration.iot_event_to_sqs]
 }
 
