@@ -32,6 +32,13 @@ data "archive_file" "custom_authorizer_zip" {
   output_path = "${path.module}/../lambdas/custom_authorizer.zip"
 }
 
+
+data "archive_file" "db_migrate_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/db_migrate"
+  output_path = "${path.module}/../lambdas/db_migrate.zip"
+}
+
 ########################################
 # Lambda employee_crud (Aurora)
 ########################################
@@ -186,25 +193,21 @@ resource "aws_lambda_permission" "apigw_invoke_employee" {
 
   source_arn = "${aws_api_gateway_rest_api.api.execution_arn}/*/*/employee"
 }
+
 ########################################
-# DB-Migrate
+# DB-Migrate (Aurora schema apply)
 ########################################
 
-data "archive_file" "db_migrate_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../lambdas/db_migrate"
-  output_path = "${path.module}/../lambdas/db_migrate.zip"
-}
-
+# Permission to read Aurora credentials secret
 resource "aws_iam_role_policy" "db_migrate_secret" {
   name = "stilltesting-db-migrate-secret"
-  role = aws_iam_role.lambda_exec.id
+  role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
-      Action = ["secretsmanager:GetSecretValue"],
+      Effect   = "Allow",
+      Action   = ["secretsmanager:GetSecretValue"],
       Resource = aws_secretsmanager_secret.aurora_credentials.arn
     }]
   })
@@ -212,9 +215,11 @@ resource "aws_iam_role_policy" "db_migrate_secret" {
 
 resource "aws_lambda_function" "db_migrate" {
   function_name = "stilltesting-db-migrate"
-  role          = aws_iam_role.lambda_exec.arn
-  handler       = "app.handler"
-  runtime       = "python3.12"
+
+  handler = "app.handler"
+  runtime = "python3.12"
+
+  role = aws_iam_role.lambda_role.arn
 
   filename         = data.archive_file.db_migrate_zip.output_path
   source_code_hash = data.archive_file.db_migrate_zip.output_base64sha256
@@ -222,17 +227,21 @@ resource "aws_lambda_function" "db_migrate" {
   timeout = 60
 
   vpc_config {
-    subnet_ids         = [aws_subnet.private[0].id, aws_subnet.private[1].id, aws_subnet.private[2].id]
-    security_group_ids = [aws_security_group.sg_app.id]
+    subnet_ids = [
+      aws_subnet.private_a.id,
+      aws_subnet.private_b.id,
+      aws_subnet.private_c.id,
+    ]
+    security_group_ids = [aws_security_group.app.id]
   }
 
   environment {
     variables = {
-      DB_SECRET_ARN = aws_secretsmanager_secret.aurora_credentials.arn
-      DB_HOST       = aws_rds_cluster.aurora.endpoint
-      DB_NAME       = "stilltesting"
+      AURORA_SECRET_ARN = aws_secretsmanager_secret.aurora_credentials.arn
+      DB_HOST           = aws_rds_cluster.aurora.endpoint
+      DB_NAME           = "stilltesting"
     }
   }
+
+  depends_on = [aws_iam_role_policy.db_migrate_secret]
 }
-
-
