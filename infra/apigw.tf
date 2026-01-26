@@ -124,6 +124,19 @@ resource "aws_api_gateway_stage" "dev" {
   rest_api_id   = aws_api_gateway_rest_api.api.id
   deployment_id = aws_api_gateway_deployment.api.id
   stage_name    = "dev"
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.apigw_access_logs.arn
+    format          = jsonencode({
+      requestId = "$context.requestId"
+      ip        = "$context.identity.sourceIp"
+      httpMethod= "$context.httpMethod"
+      path      = "$context.path"
+      status    = "$context.status"
+      error     = "$context.error.message"
+    })
+  }
+
+  depends_on = [aws_api_gateway_account.account]
 }
 
 
@@ -196,7 +209,49 @@ resource "aws_api_gateway_integration" "iot_event_to_sqs" {
   }
 
   request_templates = {
-    "application/json" = "Action=SendMessage&MessageBody=$input.body"
+    "application/json" = "Action=SendMessage&MessageBody=$util.urlEncode($input.body)"
   }
 }
 
+resource "aws_api_gateway_method_response" "iot_event_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.iot_event.id
+  http_method = aws_api_gateway_method.iot_event_post.http_method
+  status_code = "200"
+}
+
+resource "aws_api_gateway_integration_response" "iot_event_200" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.iot_event.id
+  http_method = aws_api_gateway_method.iot_event_post.http_method
+  status_code = aws_api_gateway_method_response.iot_event_200.status_code
+
+  depends_on = [aws_api_gateway_integration.iot_event_to_sqs]
+}
+
+resource "aws_iam_role" "apigw_cloudwatch_role" {
+  name = "stilltesting-apigw-cloudwatch-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "apigateway.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "apigw_cloudwatch_logs_attach" {
+  role       = aws_iam_role.apigw_cloudwatch_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+resource "aws_api_gateway_account" "account" {
+  cloudwatch_role_arn = aws_iam_role.apigw_cloudwatch_role.arn
+}
+resource "aws_cloudwatch_log_group" "apigw_access_logs" {
+  name              = "/aws/apigateway/stilltesting-dev"
+  retention_in_days = 7
+}

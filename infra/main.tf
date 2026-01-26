@@ -326,7 +326,8 @@ resource "aws_db_subnet_group" "aurora_subnets" {
 }
 ##Secrets manager
 resource "aws_secretsmanager_secret" "aurora_credentials" {
-  name        = "stilltesting-aurora-credentials"
+  name        = "stilltesting-aurora-credentials-v1"
+  recovery_window_in_days = 0
   description = "Credentials for Aurora PostgreSQL cluster"
 }
 
